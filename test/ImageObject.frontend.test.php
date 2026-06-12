@@ -90,3 +90,36 @@ test("$ENTITY: navigation includes self link with aria-current", function (array
     $r = cms_frontend_get($stack, $BASE);
     cms_assert_match('/aria-current="page"/', $r['body']);
 });
+
+test("$ENTITY: list view paginates with previous and next navigation", function (array $stack) use ($ENTITY, $BASE) {
+    cms_seed_with($stack, $ENTITY, []);
+    cms_seed_with($stack, $ENTITY, []);
+    cms_seed_with($stack, $ENTITY, []);
+    $first = cms_frontend_get($stack, $BASE . '?limit=2&offset=0');
+    cms_assert_equal(200, $first['status']);
+    cms_assert(str_contains($first['body'], 'rel="next"'), 'expected a next link on page one');
+    cms_assert(str_contains($first['body'], 'offset=2'), 'expected next link to advance offset to 2');
+    cms_assert(!str_contains($first['body'], 'rel="prev"'), 'page one must not have a previous link');
+
+    $second = cms_frontend_get($stack, $BASE . '?limit=2&offset=2');
+    cms_assert_equal(200, $second['status']);
+    cms_assert(str_contains($second['body'], 'rel="prev"'), 'expected a previous link on page two');
+});
+
+test("$ENTITY: stored javascript: and data: URLs render as inert text, never as links", function (array $stack) use ($ENTITY, $BASE) {
+    $jsId = cms_seed_with($stack, $ENTITY, ['contentUrl' => 'javascript:alert(1)']);
+    $jsHtml = cms_frontend_get($stack, $BASE . '/' . $jsId)['body'];
+    cms_assert(str_contains($jsHtml, 'javascript:alert(1)'), 'expected inert javascript: text');
+    cms_assert(!str_contains($jsHtml, 'href="javascript:'), 'javascript: must not become a link');
+
+    $dataId = cms_seed_with($stack, $ENTITY, ['contentUrl' => 'data:text/html,x']);
+    $dataHtml = cms_frontend_get($stack, $BASE . '/' . $dataId)['body'];
+    cms_assert(str_contains($dataHtml, 'data:text/html,x'), 'expected inert data: text');
+    cms_assert(!str_contains($dataHtml, 'href="data:'), 'data: must not become a link');
+});
+
+test("$ENTITY: stored http(s) URL renders as a clickable link", function (array $stack) use ($ENTITY, $BASE) {
+    $id = cms_seed_with($stack, $ENTITY, ['contentUrl' => 'https://example.com/profile']);
+    $html = cms_frontend_get($stack, $BASE . '/' . $id)['body'];
+    cms_assert(str_contains($html, 'href="https://example.com/profile"'), 'expected clickable https link');
+});

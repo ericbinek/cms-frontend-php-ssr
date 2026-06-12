@@ -228,6 +228,25 @@ function cms_ensure_entity(array $stack, string $entity): string
     return $CMS_SEEDED[$entity] = $item['id'];
 }
 
+// Seed one fresh entity with chosen field overrides, bypassing the seed cache.
+// Used to plant a hostile field value (e.g. a "javascript:" URL) and check how
+// the frontend renders it back.
+function cms_seed_with(array $stack, string $entity, array $overrides): string
+{
+    $sample = array_merge(cms_resolve_refs($stack, CMS_SAMPLES[$entity]), $overrides);
+    $r = cms_http(
+        'POST',
+        $stack['apiBaseUrl'] . '/' . CMS_PLURALS[$entity],
+        json_encode($sample, JSON_UNESCAPED_SLASHES),
+        ['Content-Type' => 'application/json'],
+    );
+    if ($r['status'] !== 201) {
+        throw new RuntimeException("cms_seed_with($entity) failed: {$r['status']} " . $r['body']);
+    }
+    $item = json_decode($r['body'], true);
+    return $item['id'];
+}
+
 function cms_encode_one(mixed $v): string
 {
     if ($v === null) return '';

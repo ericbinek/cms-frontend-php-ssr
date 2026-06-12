@@ -118,6 +118,24 @@ final class ListView
             $cols = 3 + count(self::EXTRA_COLS);
             $rows = '<tr><td colspan="' . $cols . '"><em>No items.</em></td></tr>';
         }
+        $total = $r['body']['total'];
+        $limit = max(1, (int) ($query['limit'] ?? 20));
+        $offset = max(0, (int) ($query['offset'] ?? 0));
+        // Clone every incoming query parameter and only swap offset, so the page
+        // links carry the active limit, sort, order and any filters forward.
+        $pageHref = static function (int $nextOffset) use ($query): string {
+            $next = array_merge($query, ['offset' => (string) $nextOffset]);
+            return self::BASE . '?' . http_build_query($next);
+        };
+        $prevLink = $offset > 0
+            ? '<a href="' . Layout::escapeHtml($pageHref(max(0, $offset - $limit))) . '" rel="prev">Previous</a>'
+            : '';
+        $nextLink = $offset + $limit < $total
+            ? '<a href="' . Layout::escapeHtml($pageHref($offset + $limit)) . '" rel="next">Next</a>'
+            : '';
+        $pagination = ($prevLink !== '' || $nextLink !== '')
+            ? '<nav aria-label="Pagination">' . $prevLink . $nextLink . '</nav>'
+            : '';
         return [
             'status' => 200,
             'html' => Layout::layout([
@@ -125,12 +143,13 @@ final class ListView
                 'currentEntity' => self::ENTITY,
                 'body' => '
 <p><a href="' . self::BASE . '/new">New ' . Layout::escapeHtml(self::ENTITY) . '</a></p>
-<p>Showing ' . count($r['body']['items']) . ' of ' . $r['body']['total'] . '.</p>
+<p>Showing ' . count($r['body']['items']) . ' of ' . $total . '.</p>
 <table>
 <caption>' . Layout::escapeHtml(self::ENTITY) . ' list</caption>
 <thead><tr>' . $headers . '</tr></thead>
 <tbody>' . $rows . '</tbody>
-</table>',
+</table>
+' . $pagination,
             ]),
         ];
     }

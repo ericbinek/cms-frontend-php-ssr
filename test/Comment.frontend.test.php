@@ -90,3 +90,18 @@ test("$ENTITY: navigation includes self link with aria-current", function (array
     $r = cms_frontend_get($stack, $BASE);
     cms_assert_match('/aria-current="page"/', $r['body']);
 });
+
+test("$ENTITY: list view paginates with previous and next navigation", function (array $stack) use ($ENTITY, $BASE) {
+    cms_seed_with($stack, $ENTITY, []);
+    cms_seed_with($stack, $ENTITY, []);
+    cms_seed_with($stack, $ENTITY, []);
+    $first = cms_frontend_get($stack, $BASE . '?limit=2&offset=0');
+    cms_assert_equal(200, $first['status']);
+    cms_assert(str_contains($first['body'], 'rel="next"'), 'expected a next link on page one');
+    cms_assert(str_contains($first['body'], 'offset=2'), 'expected next link to advance offset to 2');
+    cms_assert(!str_contains($first['body'], 'rel="prev"'), 'page one must not have a previous link');
+
+    $second = cms_frontend_get($stack, $BASE . '?limit=2&offset=2');
+    cms_assert_equal(200, $second['status']);
+    cms_assert(str_contains($second['body'], 'rel="prev"'), 'expected a previous link on page two');
+});
